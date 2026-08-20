@@ -17,7 +17,12 @@ ANONYMOUS_PATTERNS = [
 def _dismiss_login_popup(page: Page):
     """Close Facebook login/cookie dialogs if they appear."""
     try:
-        close_btn = page.locator('div[role="dialog"] >> div[aria-label="Close"]')
+        # 1. Try pressing Escape first (works for most Facebook modals)
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(500)
+        
+        # 2. Fallback: try clicking close buttons by various aria-labels
+        close_btn = page.locator('div[role="dialog"] >> div[aria-label="Close"], div[role="dialog"] >> div[aria-label="Đóng"]')
         if close_btn.count() > 0:
             close_btn.first.click(timeout=3000)
             page.wait_for_timeout(500)
@@ -28,16 +33,16 @@ def _dismiss_login_popup(page: Page):
 def _click_see_more(page: Page):
     """Expand all 'See more' / 'Xem thêm' buttons to reveal full captions."""
     try:
-        page.evaluate('''() => {
-            const buttons = document.querySelectorAll('div[role="button"]');
-            for (const btn of buttons) {
-                const text = btn.innerText ? btn.innerText.trim().toLowerCase() : '';
-                if (text === 'xem thêm' || text === 'see more' || text.includes('xem thêm') || text.includes('see more')) {
-                    btn.click();
-                }
-            }
-        }''')
-        page.wait_for_timeout(300)
+        # Playwright's text selector is much better at finding these nested buttons
+        # We use strict exact text matching for both languages
+        buttons = page.locator('div[role="button"]:has-text("Xem thêm"), div[role="button"]:has-text("See more"), span:has-text("Xem thêm"), span:has-text("See more")').all()
+        for btn in buttons:
+            try:
+                if btn.is_visible(timeout=500):
+                    btn.click(timeout=1000)
+            except Exception:
+                pass
+        page.wait_for_timeout(500)
     except Exception:
         pass
 
