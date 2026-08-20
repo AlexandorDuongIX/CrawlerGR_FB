@@ -31,8 +31,8 @@ def _click_see_more(page: Page):
         page.evaluate('''() => {
             const buttons = document.querySelectorAll('div[role="button"]');
             for (const btn of buttons) {
-                const text = btn.innerText.trim();
-                if (text === 'Xem thêm' || text === 'See more') {
+                const text = btn.innerText ? btn.innerText.trim().toLowerCase() : '';
+                if (text === 'xem thêm' || text === 'see more' || text.includes('xem thêm') || text.includes('see more')) {
                     btn.click();
                 }
             }
@@ -147,25 +147,9 @@ def _extract_author(article, anonymous_name: str) -> str:
 def _extract_caption(article, author: str) -> str:
     """Extract the full post caption text.
     
-    Based on DOM analysis, try in order:
-    1. data-ad-preview="message" div (most reliable when present)
-    2. <h3> tag (Facebook uses this for post text in some layouts)
-    3. Fallback: Full article text with intelligent header/footer trimming
+    Uses full article text with intelligent header/footer trimming.
+    This is the most robust way because Facebook's DOM splits rich-text into multiple fragmented elements.
     """
-    # Method 1: data-ad-preview="message" or data-ad-comet-preview="message"
-    try:
-        msg_div = article.locator('div[data-ad-preview="message"], div[data-ad-comet-preview="message"]')
-        if msg_div.count() > 0:
-            texts = []
-            for i in range(msg_div.count()):
-                t = msg_div.nth(i).inner_text(timeout=1000).strip()
-                if t: texts.append(t)
-            if texts:
-                return "\n\n".join(texts)
-    except Exception:
-        pass
-
-    # Method 3: Fallback — full article text with smart trimming
     try:
         full_text = article.inner_text(timeout=2000)
         
