@@ -144,21 +144,24 @@ def _extract_author(article, anonymous_name: str) -> str:
     return anonymous_name
 
 
-def _extract_caption(article) -> str:
+def _extract_caption(article, author: str) -> str:
     """Extract the full post caption text.
     
     Based on DOM analysis, try in order:
     1. data-ad-preview="message" div (most reliable when present)
     2. <h3> tag (Facebook uses this for post text in some layouts)
-    3. First substantial <span dir="auto"> that isn't a UI element
+    3. Fallback: Full article text with intelligent header/footer trimming
     """
     # Method 1: data-ad-preview="message" or data-ad-comet-preview="message"
     try:
         msg_div = article.locator('div[data-ad-preview="message"], div[data-ad-comet-preview="message"]')
         if msg_div.count() > 0:
-            text = msg_div.first.inner_text(timeout=3000).strip()
-            if text and len(text) > 3:
-                return text
+            texts = []
+            for i in range(msg_div.count()):
+                t = msg_div.nth(i).inner_text(timeout=1000).strip()
+                if t: texts.append(t)
+            if texts:
+                return "\n\n".join(texts)
     except Exception:
         pass
 
@@ -166,54 +169,17 @@ def _extract_caption(article) -> str:
     try:
         h3 = article.locator("h3")
         if h3.count() > 0:
-            text = h3.first.inner_text(timeout=2000).strip()
+            text = h3.first.inner_text(timeout=1000).strip()
             if text and len(text) > 3:
                 return text
     except Exception:
         pass
 
-    # Method 3: JS — find the longest meaningful block (span or div)
+    # Method 3: Fallback — full article text with smart trimming
     try:
-        caption_text = article.evaluate('''(el) => {
-            // Posts with backgrounds often put text in div[dir="auto"] instead of span
-            const nodes = el.querySelectorAll('span[dir="auto"], div[dir="auto"]');
-            let best = '';
-            for (const node of nodes) {
-                // Ignore structural divs that contain many other divs
-                if (node.tagName === 'DIV' && node.querySelectorAll('div').length > 0) continue;
-                
-                const text = node.innerText.trim();
-                const lowerText = text.toLowerCase();
-                
-                if (!text || text.length < 4) continue;
-                
-                // Regex to skip common UI elements (likes, comments, shares, replies)
-                if (/^(like|comment|share|thích|bình luận|chia sẻ|phản hồi|reply|replies)$/.test(lowerText)) continue;
-                if (/^(xem|view).*?(bình luận|phản hồi|comment|repl)/.test(lowerText)) continue;
-                if (/^(viết|write).*?(bình luận|comment)/.test(lowerText)) continue;
-                if (/^(tất cả|all).*?(bình luận|comment)/.test(lowerText)) continue;
-                if (/^(phù hợp nhất|most relevant)/.test(lowerText)) continue;
-                
-                // Skip if inside a comment sub-article
-                const parentArticle = node.closest('div[role="article"]');
-                if (parentArticle !== el) continue;
-                
-                if (text.length > best.length) {
-                    best = text;
-                }
-            }
-            return best;
-        }''')
-        if caption_text and len(caption_text) > 3:
-            return caption_text
-    except Exception:
-        pass
-
-    # Method 4: Fallback — full article text with comment trimming
-    try:
-        full_text = article.inner_text(timeout=3000)
+        full_text = article.inner_text(timeout=2000)
         
-        # Define regex patterns for where to cut off the text (UI elements)
+        # 1. Trim Footer (Comments, Likes, Shares UI)
         cutoff_patterns = [
             r"\nAll comments", r"\nTất cả bình luận",
             r"\nMost relevant", r"\nPhù hợp nhất",
@@ -235,16 +201,37 @@ def _extract_caption(article) -> str:
                 
         text = full_text[:min_pos].strip()
 
-        # Remove header lines (author + timestamp, usually first 2-3 lines)
+        # 2. Trim Header (Author, Timestamp, Group Admin badges)
         lines = text.split("\n")
-        if len(lines) > 3:
-            remaining = "\n".join(lines[3:]).strip()
-            if len(remaining) > 10:
-                # Reject if what is left is just a UI button
-                if re.match(r'^(xem|view).*?(bình luận|phản hồi|comment|repl)', remaining.lower()):
-                    return ""
-                return remaining
+        start_idx = 0
+        for i, line in enumerate(lines[:6]):
+            l = line.strip().lower()
+            if not l:
+                start_idx = i + 1
+                continue
+            
+            # Skip author name
+            if l == author.lower() or author.lower() in l:
+                start_idx = i + 1
+                continue
+                
+            # Skip metadata/timestamp lines
+            if re.search(r'(\d+[hm]\s|vừa xong|just now|hôm qua|yesterday|·|tháng|phút|giờ)', l) or \
+               l in ["admin", "người kiểm duyệt", "moderator", "công khai", "public", "được tài trợ", "sponsored"]:
+                start_idx = i + 1
+                continue
+                
+            # If we reach here, this line doesn't match header patterns, so it's likely the start of the post text
+            break
+            
+        remaining = "\n".join(lines[start_idx:]).strip()
         
+        # 3. Final validation
+        if remaining:
+            if re.match(r'^(xem|view).*?(bình luận|phản hồi|comment|repl)', remaining.lower()):
+                return ""
+            return remaining
+            
         if re.match(r'^(xem|view).*?(bình luận|phản hồi|comment|repl)', text.lower()):
             return ""
         return text
@@ -316,7 +303,7 @@ def scrape_group_for_duration(
 
                 # Extract data
                 author = _extract_author(article, anonymous_name)
-                caption = _extract_caption(article)
+                caption = _extract_caption(article, author)
 
                 # Skip posts with empty/minimal captions
                 if not caption or len(caption.strip()) < 3:
