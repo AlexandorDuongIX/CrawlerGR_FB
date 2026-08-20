@@ -96,7 +96,8 @@ def insert_posts_to_db(posts: List[Dict]) -> int:
         sql = """
             INSERT INTO posts (group_url, group_name, author, caption, post_url, scraped_at)
             VALUES %s
-            ON CONFLICT (post_url) DO NOTHING
+            ON CONFLICT (post_url) DO UPDATE 
+            SET caption = EXCLUDED.caption, scraped_at = EXCLUDED.scraped_at
         """
         execute_values(cur, sql, values)
         inserted = cur.rowcount
