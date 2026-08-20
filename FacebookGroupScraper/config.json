@@ -1,0 +1,9 @@
+{
+    "groups": [
+        "https://www.facebook.com/groups/651249392268076",
+        "https://www.facebook.com/groups/687248968532060"
+    ],
+    "anonymous_name": "Thành viên ẩn danh",
+    "scan_duration_per_group": 20,
+    "headless": true
+}
