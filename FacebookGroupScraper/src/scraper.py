@@ -177,16 +177,18 @@ def _extract_caption(article) -> str:
         caption_text = article.evaluate('''(el) => {
             const spans = el.querySelectorAll('span[dir="auto"]');
             let best = '';
-            const skip = new Set([
-                'like', 'comment', 'share', 'thích', 'bình luận', 
-                'chia sẻ', 'view more comments', 'xem thêm bình luận',
-                'most relevant', 'phù hợp nhất', 'all comments',
-                'tất cả bình luận'
-            ]);
             for (const span of spans) {
                 const text = span.innerText.trim();
+                const lowerText = text.toLowerCase();
+                
                 if (!text || text.length < 4) continue;
-                if (skip.has(text.toLowerCase())) continue;
+                
+                // Regex to skip common UI elements (likes, comments, shares, replies)
+                if (/^(like|comment|share|thích|bình luận|chia sẻ|phản hồi|reply|replies)$/.test(lowerText)) continue;
+                if (/^(xem|view).*?(bình luận|phản hồi|comment|repl)/.test(lowerText)) continue;
+                if (/^(viết|write).*?(bình luận|comment)/.test(lowerText)) continue;
+                if (/^(tất cả|all).*?(bình luận|comment)/.test(lowerText)) continue;
+                if (/^(phù hợp nhất|most relevant)/.test(lowerText)) continue;
                 
                 // Skip if inside a comment sub-article
                 const parentArticle = span.closest('div[role="article"]');
@@ -206,19 +208,27 @@ def _extract_caption(article) -> str:
     # Method 4: Fallback — full article text with comment trimming
     try:
         full_text = article.inner_text(timeout=3000)
-        cutoff_markers = [
-            "\nAll comments", "\nTất cả bình luận",
-            "\nMost relevant", "\nPhù hợp nhất",
-            "\nWrite a comment", "\nViết bình luận",
-            "\nView more comments", "\nXem thêm bình luận",
-            "\nLike\nComment\nShare",
-            "\nThích\nBình luận\nChia sẻ",
+        
+        # Define regex patterns for where to cut off the text (UI elements)
+        cutoff_patterns = [
+            r"\nAll comments", r"\nTất cả bình luận",
+            r"\nMost relevant", r"\nPhù hợp nhất",
+            r"\nWrite a comment", r"\nViết bình luận",
+            r"\nView more comments", r"\nXem thêm bình luận",
+            r"\nLike\nComment\nShare", r"\nThích\nBình luận\nChia sẻ",
+            r"\nThích\n.*?\nChia sẻ", 
+            r"\nXem \d+ phản hồi", r"\nView \d+ repl",
+            r"\nXem phản hồi", r"\nView replies",
+            r"\n\d+ bình luận", r"\n\d+ comments", 
+            r"\nChia sẻ", r"\nShare",
         ]
+        
         min_pos = len(full_text)
-        for marker in cutoff_markers:
-            pos = full_text.find(marker)
-            if pos != -1 and pos < min_pos:
-                min_pos = pos
+        for pattern in cutoff_patterns:
+            match = re.search(pattern, full_text, flags=re.IGNORECASE)
+            if match and match.start() < min_pos:
+                min_pos = match.start()
+                
         text = full_text[:min_pos].strip()
 
         # Remove header lines (author + timestamp, usually first 2-3 lines)
@@ -226,7 +236,13 @@ def _extract_caption(article) -> str:
         if len(lines) > 3:
             remaining = "\n".join(lines[3:]).strip()
             if len(remaining) > 10:
+                # Reject if what is left is just a UI button
+                if re.match(r'^(xem|view).*?(bình luận|phản hồi|comment|repl)', remaining.lower()):
+                    return ""
                 return remaining
+        
+        if re.match(r'^(xem|view).*?(bình luận|phản hồi|comment|repl)', text.lower()):
+            return ""
         return text
     except Exception:
         pass
