@@ -13,19 +13,23 @@ export default function PostsDashboard() {
   const [totalPages, setTotalPages] = useState(0)
   const [loading, setLoading] = useState(true)
 
-  const loadPosts = useCallback(async () => {
-    setLoading(true)
+  const loadPosts = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true)
     const data = await fetchPosts(page, perPage, groupFilter || null, search || null)
     if (data) {
       setPosts(data.posts || [])
       setTotal(data.total || 0)
       setTotalPages(data.total_pages || 0)
     }
-    setLoading(false)
+    if (!isSilent) setLoading(false)
   }, [page, perPage, groupFilter, search])
 
   useEffect(() => {
-    loadPosts()
+    loadPosts(false)
+    const interval = setInterval(() => {
+      loadPosts(true)
+    }, 5000)
+    return () => clearInterval(interval)
   }, [loadPosts])
 
   useEffect(() => {
