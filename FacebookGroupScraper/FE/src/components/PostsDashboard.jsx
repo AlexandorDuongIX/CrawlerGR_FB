@@ -60,6 +60,16 @@ export default function PostsDashboard() {
     return `${days}D AGO`
   }
 
+  const getGroupColor = (url) => {
+    if (!url) return 'hsl(190, 100%, 50%)' // Default primary
+    let hash = 0
+    for (let i = 0; i < url.length; i++) {
+      hash = url.charCodeAt(i) + ((hash << 5) - hash)
+    }
+    const hue = Math.abs(hash) % 360
+    return `hsl(${hue}, 100%, 65%)`
+  }
+
   const startItem = total > 0 ? (page - 1) * perPage + 1 : 0
   const endItem = Math.min(page * perPage, total)
 
@@ -164,59 +174,98 @@ export default function PostsDashboard() {
           </div>
         ) : posts.length > 0 ? (
           <div className="flex flex-col gap-4 w-full max-w-4xl mx-auto">
-            {posts.map((post) => (
-              <div
-                key={post.id}
-                className="bg-surface-glass backdrop-blur-md rounded-2xl p-5 flex flex-col gap-4 shadow-md relative overflow-hidden group/card hover:-translate-y-1 transition-transform duration-300"
-              >
-                <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity" />
+            {posts.map((post) => {
+              const groupColor = getGroupColor(post.group_url)
+              return (
+                <div
+                  key={post.id}
+                  style={{
+                    boxShadow: `0 0 15px ${groupColor}10, inset 0 0 0 1px ${groupColor}40`,
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.boxShadow = `0 10px 30px ${groupColor}20, inset 0 0 0 1px ${groupColor}80`
+                    e.currentTarget.style.transform = 'translateY(-4px)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.boxShadow = `0 0 15px ${groupColor}10, inset 0 0 0 1px ${groupColor}40`
+                    e.currentTarget.style.transform = 'translateY(0)'
+                  }}
+                  className="bg-surface-glass backdrop-blur-md rounded-2xl p-5 flex flex-col gap-4 relative overflow-hidden group/card"
+                >
+                  <div 
+                    className="absolute inset-0 opacity-0 group-hover/card:opacity-10 transition-opacity duration-300" 
+                    style={{ background: `linear-gradient(to bottom, ${groupColor}, transparent)` }}
+                  />
 
-                {/* Card Header: Group + Time */}
-                <div className="flex justify-between items-start relative z-10">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-[#0F172A] flex items-center justify-center shadow-inner">
-                      <span className="material-symbols-outlined text-[16px] text-tertiary-fixed">group</span>
+                  {/* Card Header: Group + Time */}
+                  <div className="flex justify-between items-start relative z-10">
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-8 h-8 rounded-full flex items-center justify-center shadow-inner"
+                        style={{ backgroundColor: `${groupColor}15`, color: groupColor }}
+                      >
+                        <span className="material-symbols-outlined text-[16px]">group</span>
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-label-bold text-[10px] uppercase text-text-muted tracking-wider truncate">Group</span>
+                        <span className="font-label-bold text-label-bold text-on-surface break-words" title={post.group_name}>
+                          {post.group_name}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-label-bold text-[10px] uppercase text-text-muted tracking-wider truncate">Group</span>
-                      <span className="font-label-bold text-label-bold text-on-surface break-words" title={post.group_name}>
-                        {post.group_name}
-                      </span>
+                    <div 
+                      className="px-2 py-1 rounded-md flex items-center gap-1 shadow-inner shrink-0"
+                      style={{ backgroundColor: `${groupColor}15` }}
+                    >
+                      <span className="material-symbols-outlined text-[12px]" style={{ color: groupColor }}>schedule</span>
+                      <span className="font-label-bold text-[10px]" style={{ color: groupColor }}>{timeAgo(post.scraped_at)}</span>
                     </div>
                   </div>
-                  <div className="bg-[#0F172A] px-2 py-1 rounded-md flex items-center gap-1 shadow-inner shrink-0">
-                    <span className="material-symbols-outlined text-[12px] text-primary">schedule</span>
-                    <span className="font-label-bold text-[10px] text-primary">{timeAgo(post.scraped_at)}</span>
-                  </div>
-                </div>
 
-                {/* Card Body: Author + Caption */}
-                <div className="flex flex-col gap-2 relative z-10">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-surface-container-high overflow-hidden shadow-inner flex items-center justify-center shrink-0">
-                      <span className="font-label-bold text-label-bold text-primary">
-                        {post.author?.[0]?.toUpperCase() || '?'}
-                      </span>
+                  {/* Card Body: Author + Caption */}
+                  <div className="flex flex-col gap-2 relative z-10">
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-6 h-6 rounded-full overflow-hidden shadow-inner flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: `${groupColor}20` }}
+                      >
+                        <span className="font-label-bold text-label-bold" style={{ color: groupColor }}>
+                          {post.author?.[0]?.toUpperCase() || '?'}
+                        </span>
+                      </div>
+                      <span className="font-label-bold text-label-sm text-on-surface-variant truncate">{post.author}</span>
                     </div>
-                    <span className="font-label-bold text-label-sm text-on-surface-variant truncate">{post.author}</span>
+                    <p className="font-body-md text-body-md text-on-surface leading-relaxed whitespace-pre-wrap">{post.caption}</p>
                   </div>
-                  <p className="font-body-md text-body-md text-on-surface leading-relaxed whitespace-pre-wrap">{post.caption}</p>
-                </div>
 
-                {/* Card Action */}
-                <div className="mt-4 pt-4 border-t border-white/5 relative z-10 flex justify-end">
-                  <a
-                    href={post.post_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 px-6 py-2 rounded-xl bg-transparent hover:bg-primary/5 text-primary font-label-bold text-label-bold transition-colors group/btn shadow-[inset_0_0_0_1px_rgba(0,240,255,0.3)] hover:shadow-[inset_0_0_0_1px_rgba(0,240,255,0.8),0_0_15px_rgba(0,240,255,0.15)]"
-                  >
-                    VIEW ON FB
-                    <span className="material-symbols-outlined text-[16px] group-hover/btn:translate-x-1 transition-transform">arrow_forward</span>
-                  </a>
+                  {/* Card Action */}
+                  <div className="mt-4 pt-4 border-t border-white/5 relative z-10 flex justify-end">
+                    <a
+                      href={post.post_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-2 px-6 py-2 rounded-xl bg-transparent font-label-bold text-label-bold transition-all group/btn"
+                      style={{
+                        color: groupColor,
+                        boxShadow: `inset 0 0 0 1px ${groupColor}40`
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${groupColor}, 0 0 15px ${groupColor}30`
+                        e.currentTarget.style.backgroundColor = `${groupColor}10`
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${groupColor}40`
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                      }}
+                    >
+                      VIEW ON FB
+                      <span className="material-symbols-outlined text-[16px] group-hover/btn:translate-x-1 transition-transform">arrow_forward</span>
+                    </a>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center p-12 text-center h-64">
