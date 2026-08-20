@@ -204,12 +204,12 @@ def _extract_caption(article, author: str) -> str:
         if remaining:
             if re.match(r'^(xem|view).*?(bình luận|phản hồi|comment|repl)', remaining.lower()):
                 return ""
-            remaining = re.sub(r'(?i)\n\s*(ẩn bớt|see less|xem thêm|see more)\s*$', '', remaining).strip()
+            remaining = re.sub(r'(?i)([\n\s]*(ẩn bớt|see less|xem thêm|see more))+[\n\s]*$', '', remaining).strip()
             return remaining
             
         if re.match(r'^(xem|view).*?(bình luận|phản hồi|comment|repl)', text.lower()):
             return ""
-        text = re.sub(r'(?i)\n\s*(ẩn bớt|see less|xem thêm|see more)\s*$', '', text).strip()
+        text = re.sub(r'(?i)([\n\s]*(ẩn bớt|see less|xem thêm|see more))+[\n\s]*$', '', text).strip()
         return text
     except Exception:
         pass
