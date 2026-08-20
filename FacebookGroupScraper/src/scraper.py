@@ -152,9 +152,9 @@ def _extract_caption(article) -> str:
     2. <h3> tag (Facebook uses this for post text in some layouts)
     3. First substantial <span dir="auto"> that isn't a UI element
     """
-    # Method 1: data-ad-preview="message"
+    # Method 1: data-ad-preview="message" or data-ad-comet-preview="message"
     try:
-        msg_div = article.locator('div[data-ad-preview="message"]')
+        msg_div = article.locator('div[data-ad-preview="message"], div[data-ad-comet-preview="message"]')
         if msg_div.count() > 0:
             text = msg_div.first.inner_text(timeout=3000).strip()
             if text and len(text) > 3:
@@ -172,13 +172,17 @@ def _extract_caption(article) -> str:
     except Exception:
         pass
 
-    # Method 3: JS — find the longest meaningful span[dir="auto"]
+    # Method 3: JS — find the longest meaningful block (span or div)
     try:
         caption_text = article.evaluate('''(el) => {
-            const spans = el.querySelectorAll('span[dir="auto"]');
+            // Posts with backgrounds often put text in div[dir="auto"] instead of span
+            const nodes = el.querySelectorAll('span[dir="auto"], div[dir="auto"]');
             let best = '';
-            for (const span of spans) {
-                const text = span.innerText.trim();
+            for (const node of nodes) {
+                // Ignore structural divs that contain many other divs
+                if (node.tagName === 'DIV' && node.querySelectorAll('div').length > 0) continue;
+                
+                const text = node.innerText.trim();
                 const lowerText = text.toLowerCase();
                 
                 if (!text || text.length < 4) continue;
@@ -191,7 +195,7 @@ def _extract_caption(article) -> str:
                 if (/^(phù hợp nhất|most relevant)/.test(lowerText)) continue;
                 
                 // Skip if inside a comment sub-article
-                const parentArticle = span.closest('div[role="article"]');
+                const parentArticle = node.closest('div[role="article"]');
                 if (parentArticle !== el) continue;
                 
                 if (text.length > best.length) {
