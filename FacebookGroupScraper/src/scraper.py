@@ -165,16 +165,6 @@ def _extract_caption(article, author: str) -> str:
     except Exception:
         pass
 
-    # Method 2: <h3> tag (often contains the post body)
-    try:
-        h3 = article.locator("h3")
-        if h3.count() > 0:
-            text = h3.first.inner_text(timeout=1000).strip()
-            if text and len(text) > 3:
-                return text
-    except Exception:
-        pass
-
     # Method 3: Fallback — full article text with smart trimming
     try:
         full_text = article.inner_text(timeout=2000)
