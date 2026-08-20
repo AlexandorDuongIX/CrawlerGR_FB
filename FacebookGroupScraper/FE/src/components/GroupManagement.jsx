@@ -9,6 +9,16 @@ export default function GroupManagement() {
   const [errorMsg, setErrorMsg] = useState('')
   const [filter, setFilter] = useState('')
 
+  const getGroupColor = (url) => {
+    if (!url) return 'hsl(190, 100%, 50%)'
+    let hash = 0
+    for (let i = 0; i < url.length; i++) {
+      hash = url.charCodeAt(i) + ((hash << 5) - hash)
+    }
+    const hue = Math.abs(hash) % 360
+    return `hsl(${hue}, 100%, 65%)`
+  }
+
   const loadGroups = async () => {
     const data = await fetchGroups()
     if (data) setGroups(data.groups || [])
@@ -266,22 +276,28 @@ export default function GroupManagement() {
                         </td>
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-3">
-                            <div
-                              className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                                group.active ? 'bg-surface-container' : 'bg-[#0F172A]'
-                              }`}
-                              style={!group.active ? { border: '1px dashed rgba(255,255,255,0.1)' } : {}}
-                            >
-                              <span className={`material-symbols-outlined text-[16px] ${group.active ? 'text-primary' : 'text-on-surface-variant/50'}`}>
-                                {group.active ? 'hub' : 'link_off'}
-                              </span>
-                            </div>
-                            <span
-                              className={`font-medium truncate max-w-[150px] sm:max-w-[200px] ${!group.active ? 'text-on-surface-variant line-through' : ''}`}
-                              title={group.name || group.url}
-                            >
-                              {group.name || 'Unnamed'}
-                            </span>
+                            {(() => {
+                              const groupColor = getGroupColor(group.url)
+                              return (
+                                <>
+                                  <div
+                                    className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                                    style={group.active ? { backgroundColor: `${groupColor}15`, color: groupColor, boxShadow: `inset 0 0 0 1px ${groupColor}40` } : { border: '1px dashed rgba(255,255,255,0.1)', backgroundColor: '#0F172A' }}
+                                  >
+                                    <span className={`material-symbols-outlined text-[16px] ${!group.active ? 'text-on-surface-variant/50' : ''}`} style={group.active ? { color: groupColor } : {}}>
+                                      {group.active ? 'hub' : 'link_off'}
+                                    </span>
+                                  </div>
+                                  <span
+                                    className={`font-medium truncate max-w-[150px] sm:max-w-[200px] ${!group.active ? 'text-on-surface-variant line-through' : ''}`}
+                                    title={group.name || group.url}
+                                    style={group.active ? { color: groupColor, textShadow: `0 0 10px ${groupColor}40` } : {}}
+                                  >
+                                    {group.name || 'Unnamed'}
+                                  </span>
+                                </>
+                              )
+                            })()}
                           </div>
                         </td>
                         <td className="py-4 px-6 text-on-surface-variant/70 font-mono text-[11px] hidden lg:table-cell truncate max-w-[180px]" title={group.url}>
