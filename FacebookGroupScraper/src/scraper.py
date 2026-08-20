@@ -165,6 +165,9 @@ def _extract_caption(article, author: str) -> str:
             r"\nXem phản hồi", r"\nView replies",
             r"\n\d+ bình luận", r"\n\d+ comments", 
             r"\nChia sẻ", r"\nShare",
+            r"\nTất cả cảm xúc", r"\nAll reactions",
+            r"\n\d+\s+cảm xúc", r"\n\d+\s+reactions",
+            r"\n\d+\s+lượt thích", r"\n\d+\s+likes",
         ]
         
         min_pos = len(full_text)
@@ -178,7 +181,7 @@ def _extract_caption(article, author: str) -> str:
         # 2. Trim Header (Author, Timestamp, Group Admin badges)
         lines = text.split("\n")
         start_idx = 0
-        for i, line in enumerate(lines[:6]):
+        for i, line in enumerate(lines[:8]):
             l = line.strip().lower()
             if not l:
                 start_idx = i + 1
@@ -189,8 +192,13 @@ def _extract_caption(article, author: str) -> str:
                 start_idx = i + 1
                 continue
                 
+            # Skip stray dots
+            if l == '·' or l == '.':
+                start_idx = i + 1
+                continue
+                
             # Skip metadata/timestamp lines
-            if re.search(r'(\d+[hm]\s|vừa xong|just now|hôm qua|yesterday|·|tháng|phút|giờ)', l) or \
+            if re.search(r'(\d+\s*[hm]\b|\d+\s*(giờ|phút|ngày|tháng|năm)|vừa xong|just now|hôm qua|yesterday|·)', l) or \
                l in ["admin", "người kiểm duyệt", "moderator", "công khai", "public", "được tài trợ", "sponsored"]:
                 start_idx = i + 1
                 continue
